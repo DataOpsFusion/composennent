@@ -20,6 +20,7 @@ class Encoder(Block):
         latent_dim: Dimension of the model (embedding size).
         num_heads: Number of attention heads.
         drop_out: Dropout probability. Defaults to 0.1.
+        mlp_ratio: Expansion ratio for MLP hidden dimension. Defaults to 4.
         return_attention: Whether to return attention weights. Defaults to False.
 
     Example:
@@ -36,6 +37,7 @@ class Encoder(Block):
         latent_dim: int,
         num_heads: int,
         drop_out: float = 0.1,
+        mlp_ratio: int = 4,
         return_attention: bool = False,
     ) -> None:
         super().__init__()
@@ -49,11 +51,12 @@ class Encoder(Block):
             dropout=drop_out,
         )
         self.norm1 = nn.LayerNorm(latent_dim)
+        mlp_hidden_dim = latent_dim * mlp_ratio
         self.mlp = SequentialBlock(
-            nn.Linear(latent_dim, latent_dim * 4),
+            nn.Linear(latent_dim, mlp_hidden_dim),
             nn.GELU(),
             nn.Dropout(drop_out),
-            nn.Linear(latent_dim * 4, latent_dim),
+            nn.Linear(mlp_hidden_dim, latent_dim),
         )
         self.norm2 = nn.LayerNorm(latent_dim)
         self.dropout = nn.Dropout(drop_out)
