@@ -126,6 +126,4 @@ class Decoder(Block):
         mlp_out = self.mlp(normed)
         x = x + self.dropout(mlp_out)
 
-        if return_attn:
-            return x, (self_attn_weights, cross_attn_weights)
-        return x
+        return (x, (self_attn_weights, cross_attn_weights)) if return_attn else x

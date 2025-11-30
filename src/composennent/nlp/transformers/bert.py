@@ -90,12 +90,10 @@ class Bert(nn.Module):
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
 
-        # Embeddings
         x = (self.token_embedding(input_ids) +
              self.position_embedding(positions) +
              self.segment_embedding(token_type_ids))
         x = self.dropout(x)
-
 
         key_padding_mask = None
         if attention_mask is not None:
@@ -103,7 +101,6 @@ class Bert(nn.Module):
 
         for layer in self.layers:
             x = layer(x, key_padding_mask=key_padding_mask)
-
 
         mlm_logits = self.mlm_head(x)
 

@@ -99,6 +99,4 @@ class Encoder(Block):
         mlp_out = self.mlp(normed)
         x = x + self.dropout(mlp_out)
 
-        if return_attn:
-            return x, attn_weights
-        return x
+        return (x, attn_weights) if return_attn else x

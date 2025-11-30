@@ -85,7 +85,6 @@ class GPT(nn.Module):
         x = self.token_embedding(input_ids) + self.position_embedding(positions)
         x = self.dropout(x)
 
-        # Generate causal mask once for all layers
         mask = causal_mask(seq_len, x.device)
 
         for layer in self.layers:
