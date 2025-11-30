@@ -55,6 +55,33 @@ class BaseTokenizer(ABC):
         """Return the vocabulary size."""
         ...
 
+    @property
+    def pad_id(self) -> int:
+        """Return the padding token ID.
+
+        Override this in subclasses to provide tokenizer-specific pad ID.
+        Default returns 0.
+        """
+        return 0
+
+    @property
+    def bos_id(self) -> int:
+        """Return the beginning-of-sequence token ID.
+
+        Override this in subclasses to provide tokenizer-specific BOS ID.
+        Default returns 1.
+        """
+        return 1
+
+    @property
+    def eos_id(self) -> int:
+        """Return the end-of-sequence token ID.
+
+        Override this in subclasses to provide tokenizer-specific EOS ID.
+        Default returns 2.
+        """
+        return 2
+
     @abstractmethod
     def save(self, path: str) -> None:
         """Save tokenizer model to file.

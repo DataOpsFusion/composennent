@@ -163,6 +163,27 @@ class SentencePieceTokenizer(BaseTokenizer):
             return self.sp.get_piece_size()
         return self._vocab_size
 
+    @property
+    def pad_id(self) -> int:
+        """Return the padding token ID."""
+        if self.sp is not None:
+            return self.sp.pad_id()
+        return 0
+
+    @property
+    def bos_id(self) -> int:
+        """Return the beginning-of-sequence token ID."""
+        if self.sp is not None:
+            return self.sp.bos_id()
+        return 2
+
+    @property
+    def eos_id(self) -> int:
+        """Return the end-of-sequence token ID."""
+        if self.sp is not None:
+            return self.sp.eos_id()
+        return 3
+
     def save(self, path: str) -> None:
         """Save tokenizer model to file.
 

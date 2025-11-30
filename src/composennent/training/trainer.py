@@ -18,7 +18,7 @@ def train(
     lr: float = 3e-4,
     device: str = "cuda",
     padding_strategy: str = "max_length",
-    pad_token_id: int = 0,
+    pad_token_id: Optional[int] = None,
     use_amp: bool = True,  # Mixed precision training
 ):
     """Training loop for language models.
@@ -26,7 +26,7 @@ def train(
     Args:
         model: The model to train (e.g., GPT, BERT)
         texts: List of text strings to train on
-        tokenizer: Tokenizer instance
+        tokenizer: Any BaseTokenizer implementation
         epochs: Number of training epochs
         batch_size: Batch size
         max_length: Maximum sequence length
@@ -34,7 +34,7 @@ def train(
         lr: Learning rate (used only if optimizer is None)
         device: Device to train on ("cuda" or "cpu")
         padding_strategy: "max_length" (simple) or "longest" (efficient)
-        pad_token_id: Padding token ID for dynamic padding
+        pad_token_id: Padding token ID. If None, uses tokenizer.pad_id
         use_amp: Use automatic mixed precision (FP16) for 2x speedup (default: True)
 
     Example:
@@ -45,6 +45,9 @@ def train(
         >>> custom_opt = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         >>> train(model, train_texts, tokenizer, optimizer=custom_opt, use_amp=False)
     """
+    # Auto-detect pad_token_id from tokenizer if not provided
+    if pad_token_id is None:
+        pad_token_id = tokenizer.pad_id
     dataloader = create_dataloader(
         texts=texts,
         tokenizer=tokenizer,
