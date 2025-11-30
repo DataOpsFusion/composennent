@@ -60,43 +60,45 @@ class TextDataset(Dataset):
         texts: List[str],
         tokenizer,
         max_length: int,
-        padding_strategy: str = "max_length"
+        padding_strategy: str = "max_length",
+        pad_token_id: int = 0,
     ):
         """
         Args:
             texts: List of text strings to tokenize
-            tokenizer: Tokenizer instance (e.g., SentencePieceTokenizer)
+            tokenizer: Any BaseTokenizer implementation
             max_length: Maximum sequence length
-            padding_strategy: "max_length" (pad to max_length) or "longest" (dynamic padding in collate)
+            padding_strategy: "max_length" (pad inside __getitem__) or "longest" (dynamic padding in collate)
+            pad_token_id: Token ID to use for padding
         """
         self.texts = texts
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.padding_strategy = padding_strategy
+        self.pad_token_id = pad_token_id
 
     def __len__(self):
         return len(self.texts)
 
     def __getitem__(self, idx):
-        if self.padding_strategy == "max_length":
-            encoding = self.tokenizer(
-                self.texts[idx],
-                truncation=True,
-                padding='max_length',
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
-        else:
-            encoding = self.tokenizer(
-                self.texts[idx],
-                truncation=True,
-                padding=False,
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
+        text = self.texts[idx]
 
-        input_ids = encoding['input_ids'].squeeze(0)
-        attention_mask = encoding['attention_mask'].squeeze(0)
+        # BaseTokenizer API: use encode() method
+        ids = self.tokenizer.encode(text, add_special_tokens=True)
+        ids = ids[: self.max_length]
+        input_ids = torch.tensor(ids, dtype=torch.long)
+
+        # 1 for real tokens (we'll pad later if needed)
+        attention_mask = torch.ones_like(input_ids, dtype=torch.long)
+
+        if self.padding_strategy == "max_length":
+            pad_len = self.max_length - input_ids.size(0)
+            if pad_len > 0:
+                pad_ids = torch.full((pad_len,), self.pad_token_id, dtype=torch.long)
+                pad_mask = torch.zeros((pad_len,), dtype=torch.long)
+                input_ids = torch.cat([input_ids, pad_ids], dim=0)
+                attention_mask = torch.cat([attention_mask, pad_mask], dim=0)
+
         labels = input_ids.clone()
 
         return {
@@ -182,6 +184,7 @@ def create_dataloader(
         tokenizer=tokenizer,
         max_length=max_length,
         padding_strategy=padding_strategy,
+        pad_token_id=pad_token_id,
     )
 
     if padding_strategy == "longest":

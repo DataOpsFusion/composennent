@@ -61,28 +61,41 @@ def train(
     # Initialize gradient scaler for mixed precision (only used if use_amp=True)
     scaler = GradScaler(enabled=use_amp)
 
+    device = torch.device(device if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.train()
+
+    vocab_size = tokenizer.vocab_size
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
 
     for epoch in range(epochs):
         total_loss = 0.0
         num_batches = 0
 
-        for batch in dataloader:
+        for b in dataloader:
             batch = Batch(
-                input_ids=batch.input_ids.to(device, non_blocking=True),
-                attention_mask=batch.attention_mask.to(device, non_blocking=True),
-                labels=batch.labels.to(device, non_blocking=True),
+                input_ids=b.input_ids.to(device, non_blocking=True),
+                attention_mask=b.attention_mask.to(device, non_blocking=True),
+                labels=b.labels.to(device, non_blocking=True),
             )
 
             optimizer.zero_grad()
 
+            key_padding_mask = batch.attention_mask == 0  # (B, T) bool
+
             # Mixed precision forward pass
             with autocast(enabled=use_amp):
-                logits, loss = model(
+                logits = model(
                     input_ids=batch.input_ids,
-                    attention_mask=batch.attention_mask,
-                    labels=batch.labels,
+                    key_padding_mask=key_padding_mask,
+                )
+                # next-token prediction
+                logits_shifted = logits[:, :-1, :].contiguous()
+                labels_shifted = batch.labels[:, 1:].contiguous()
+
+                loss = criterion(
+                    logits_shifted.view(-1, vocab_size),
+                    labels_shifted.view(-1),
                 )
 
             # Scaled backward pass (handles FP16 gradients)
@@ -93,5 +106,5 @@ def train(
             total_loss += loss.item()
             num_batches += 1
 
-        avg_loss = total_loss / num_batches
+        avg_loss = total_loss / max(1, num_batches)
         print(f"Epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.4f}")
