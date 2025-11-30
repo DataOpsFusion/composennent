@@ -2,5 +2,7 @@
 
 from .block import Block
 from .sequential import SequentialBlock
+from .encoder import Encoder
+from .decoder import Decoder
 
-__all__ = ["Block", "SequentialBlock"]
+__all__ = ["Block", "SequentialBlock", "Encoder", "Decoder"]
