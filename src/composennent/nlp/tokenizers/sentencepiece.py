@@ -95,7 +95,6 @@ class SentencePieceTokenizer(BaseTokenizer):
             'model_prefix': model_path,
             'model_type': self.model_type,
             'vocab_size': self._vocab_size,
-            'user_defined_symbols': ','.join(self.special_tokens),
             'pad_id': 0,
             'unk_id': 1,
             'bos_id': 2,
