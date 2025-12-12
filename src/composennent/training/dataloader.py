@@ -10,13 +10,13 @@ class Batch:
 
     Extensible design for text, vision-language, and mixture-of-experts models.
     """
-    input_ids: torch.Tensor  # (batch_size, seq_len)
-    attention_mask: torch.Tensor  # (batch_size, seq_len)
-    labels: torch.Tensor  # (batch_size, seq_len)
+    input_ids: torch.Tensor
+    attention_mask: torch.Tensor
+    labels: torch.Tensor
 
-    # Optional fields for future VLM/MoE support
-    pixel_values: Optional[torch.Tensor] = None  # For vision inputs
-    expert_ids: Optional[torch.Tensor] = None  # For MoE routing
+
+    pixel_values: Optional[torch.Tensor] = None
+    expert_ids: Optional[torch.Tensor] = None
 
 
 def collate_batch(batch_list: List[dict]) -> Batch:
@@ -83,12 +83,12 @@ class TextDataset(Dataset):
     def __getitem__(self, idx):
         text = self.texts[idx]
 
-        # BaseTokenizer API: use encode() method
+
         ids = self.tokenizer.encode(text, add_special_tokens=True)
         ids = ids[: self.max_length]
         input_ids = torch.tensor(ids, dtype=torch.long)
 
-        # 1 for real tokens (we'll pad later if needed)
+
         attention_mask = torch.ones_like(input_ids, dtype=torch.long)
 
         if self.padding_strategy == "max_length":
