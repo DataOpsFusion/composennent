@@ -1,3 +1,14 @@
-from .masks import causal_mask
+"""Attention utilities and blocks for transformers."""
 
-__all__ = ["causal_mask"]
+from .masks import causal_mask, padding_mask, sliding_window_mask, combine_masks
+from .multi_head import MultiHeadAttention
+
+__all__ = [
+    # Masks
+    "causal_mask",
+    "padding_mask",
+    "sliding_window_mask",
+    "combine_masks",
+    # Attention blocks
+    "MultiHeadAttention",
+]
