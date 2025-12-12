@@ -5,8 +5,9 @@ from typing import Optional
 from composennent.basic.decoder import Decoder
 from composennent.attention import causal_mask
 from composennent.basic.encoder import Encoder
+from composennent.basic.block import Block
 
-class Transformer(nn.Module):
+class Transformer(Block):
     """Transformer: Encoder-Decoder architecture for sequence-to-sequence tasks.
 
     Implements a standard Transformer architecture with stacked encoder and decoder layers,
@@ -68,7 +69,7 @@ class Transformer(nn.Module):
         self.ln_f = nn.LayerNorm(latent_dim)
         self.lm_head = nn.Linear(latent_dim, vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding.weight
-        
+
     def forward(
         self,
         src_input_ids: torch.Tensor,
@@ -91,17 +92,17 @@ class Transformer(nn.Module):
         positions = torch.arange(src_seq_len, device=src_input_ids.device).unsqueeze(0)
         src_embeddings = self.token_embedding(src_input_ids) * math.sqrt(self.latent_dim) + self.position_embedding(positions)
         src_embeddings = self.dropout(src_embeddings)
-        
+
         for layer in self.encoder_layers:
             src_embeddings = layer(src_embeddings, src_key_padding_mask)
-        
+
         batch_size, tgt_seq_len = tgt_input_ids.shape
         positions = torch.arange(tgt_seq_len, device=tgt_input_ids.device).unsqueeze(0)
         tgt_embeddings = self.token_embedding(tgt_input_ids) * math.sqrt(self.latent_dim) + self.position_embedding(positions)
         tgt_embeddings = self.dropout(tgt_embeddings)
-        
+
         mask = causal_mask(tgt_seq_len, tgt_embeddings.device)
-        
+
         for layer in self.decoder_layers:
             tgt_embeddings = layer(
                 tgt_embeddings,
@@ -110,7 +111,7 @@ class Transformer(nn.Module):
                 tgt_key_padding_mask=tgt_key_padding_mask,
                 memory_key_padding_mask=src_key_padding_mask,
             )
-        
+
         tgt_embeddings = self.ln_f(tgt_embeddings)
         logits = self.lm_head(tgt_embeddings)
         return logits

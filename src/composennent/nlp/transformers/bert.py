@@ -2,11 +2,12 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 from composennent.basic.encoder import Encoder
+from .base import BaseLanguageModel
 
 
-class Bert(nn.Module):
+class Bert(BaseLanguageModel):
     """BERT: Encoder-only Transformer for masked language modeling and NSP.
 
     Implements BERT architecture with stacked encoder layers, token/position/segment
@@ -23,15 +24,28 @@ class Bert(nn.Module):
         mlp_ratio: MLP expansion ratio for encoder layers. Defaults to 4.
 
     Example:
+        >>> # Create new model
         >>> model = Bert(
         ...     vocab_size=30522,
         ...     latent_dim=768,
         ...     num_heads=12,
         ...     num_layers=12,
         ... )
+        >>>
+        >>> # BERT pretraining mode (returns dict with mlm_logits and nsp_logits)
         >>> output = model(input_ids, token_type_ids, attention_mask)
         >>> mlm_logits = output["mlm_logits"]  # (batch, seq_len, vocab_size)
         >>> nsp_logits = output["nsp_logits"]  # (batch, 2)
+        >>>
+        >>> # Generic trainer mode (returns only mlm_logits tensor)
+        >>> logits = model(input_ids, key_padding_mask=mask, return_dict=False)
+        >>> # logits shape: (batch, seq_len, vocab_size)
+        >>>
+        >>> # Save model
+        >>> model.save("bert_model.pt")
+        >>>
+        >>> # Load pretrained model
+        >>> loaded_model = Bert.load("bert_model.pt")
     """
 
     def __init__(
@@ -45,7 +59,16 @@ class Bert(nn.Module):
         mlp_ratio: int = 4,
     ) -> None:
         super().__init__()
+
+
+        self.vocab_size = vocab_size
         self.latent_dim = latent_dim
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.max_seq_len = max_seq_len
+        self.drop_out = drop_out
+        self.mlp_ratio = mlp_ratio
+
 
         self.token_embedding = nn.Embedding(vocab_size, latent_dim)
         self.position_embedding = nn.Embedding(max_seq_len, latent_dim)
@@ -69,7 +92,9 @@ class Bert(nn.Module):
         input_ids: torch.Tensor,
         token_type_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        key_padding_mask: Optional[torch.Tensor] = None,
+        return_dict: bool = True,
+    ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """Forward pass for BERT pretraining tasks.
 
         Args:
@@ -78,11 +103,19 @@ class Bert(nn.Module):
                 Shape (batch, seq_len). Defaults to all zeros if not provided.
             attention_mask: Mask indicating valid positions (1) vs padding (0).
                 Shape (batch, seq_len). Defaults to all valid if not provided.
+            key_padding_mask: Boolean mask where True indicates padding positions.
+                Shape (batch, seq_len). Takes precedence over attention_mask if provided.
+            return_dict: If True, returns a dictionary with mlm_logits and nsp_logits.
+                If False, returns only mlm_logits tensor for compatibility with generic trainers.
+                Defaults to True.
 
         Returns:
-            Dictionary containing:
-                - mlm_logits: Logits for masked language modeling (batch, seq_len, vocab_size)
-                - nsp_logits: Logits for next sentence prediction (batch, 2)
+            If return_dict is True:
+                Dictionary containing:
+                    - mlm_logits: Logits for masked language modeling (batch, seq_len, vocab_size)
+                    - nsp_logits: Logits for next sentence prediction (batch, 2)
+            If return_dict is False:
+                Tensor of shape (batch, seq_len, vocab_size) containing mlm_logits only.
         """
         batch_size, seq_len = input_ids.shape
         positions = torch.arange(seq_len, device=input_ids.device).unsqueeze(0)
@@ -95,14 +128,18 @@ class Bert(nn.Module):
              self.segment_embedding(token_type_ids))
         x = self.dropout(x)
 
-        key_padding_mask = None
-        if attention_mask is not None:
+
+        if key_padding_mask is None and attention_mask is not None:
             key_padding_mask = (attention_mask == 0)
 
         for layer in self.layers:
             x = layer(x, key_padding_mask=key_padding_mask)
 
         mlm_logits = self.mlm_head(x)
+
+
+        if not return_dict:
+            return mlm_logits
 
         cls_token = x[:, 0, :]
         cls_pooled = torch.tanh(self.pooler(cls_token))
@@ -112,3 +149,12 @@ class Bert(nn.Module):
             "mlm_logits": mlm_logits,
             "nsp_logits": nsp_logits,
         }
+
+    def save(self, path: str):
+        """Save model weights and configuration."""
+        super().save(path)
+
+    @classmethod
+    def load(cls, path: str, device: str = "cpu", **model_kwargs):
+        """Load model from saved checkpoint."""
+        return super().load(path, device=device, **model_kwargs)

@@ -2,6 +2,7 @@
 
 from . import attention
 from . import basic
+from . import models
 from . import nlp
 from . import expert
 from . import vision
@@ -12,6 +13,7 @@ from . import training
 __all__ = [
     "attention",
     "basic",
+    "models",
     "nlp",
     "expert",
     "vision",
@@ -19,3 +21,4 @@ __all__ = [
     "ocr",
     "training",
 ]
+

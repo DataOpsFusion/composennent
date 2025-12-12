@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "composennent"
-version = "0.2.5"
+version = "0.3.6"
 description = "Composable neural network components for building models in PyTorch."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -29,12 +28,24 @@ classifiers = [
 
 dependencies = [
     "torch>=2.0.0",
+    "tqdm>=4.65.0",
 ]
 
 [project.optional-dependencies]
-tokenizers = [
+# NLP: pip install composennent[nlp]
+nlp = [
     "sentencepiece>=0.1.99",
 ]
+# Vision: pip install composennent[vision]
+vision = [
+    "torchvision>=0.15.0",
+    "pillow>=9.0.0",
+]
+# OCR: pip install composennent[ocr]
+ocr = [
+    "pytesseract>=0.3.10",
+]
+# Development tools
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -42,8 +53,9 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
+# Install everything: pip install composennent[all]
 all = [
-    "composennent[tokenizers,dev]",
+    "composennent[nlp,vision,ocr,dev]",
 ]
 
 [project.urls]

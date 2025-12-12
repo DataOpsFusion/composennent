@@ -3,11 +3,8 @@ from .base import BaseTokenizer
 import os
 import json
 from collections import defaultdict
-
-try:
-    from ..utils.text_preprocessing import pre_tokenize
-except ImportError:
-    from composennent.utils.text_preprocessing import pre_tokenize
+from tqdm import tqdm
+from composennent.utils.text_preprocessing import pre_tokenize
 
 class WordPieceTrainer:
     def __init__(self, vocab_size: int, min_frequency: int = 2, special_tokens: Optional[List[str]] = None):
@@ -17,32 +14,33 @@ class WordPieceTrainer:
         self.word_freqs = defaultdict(int)
         self.vocab = {}
 
-    def train(self, texts: List[str], lowercase: bool = True) -> Dict[str, int]:
+    def train(self, texts: List[str], lowercase: bool = True, verbose: bool = True) -> Dict[str, int]:
         """Train WordPiece tokenizer on the given texts.
 
         Args:
             texts: List of text strings to train on
             lowercase: Whether to lowercase the text
+            verbose: Show progress bar during training
 
         Returns:
             Dictionary mapping tokens to their IDs
         """
-        # Initialize word frequencies
-        for text in texts:
+        # Collect word frequencies with progress bar
+        for text in tqdm(texts, desc="Counting words", disable=not verbose):
             words = pre_tokenize(text, lowercase)
             for word in words:
                 self.word_freqs[word] += 1
 
-        # Filter by minimum frequency
+
         self.word_freqs = {
             word: freq for word, freq in self.word_freqs.items()
             if freq >= self.min_frequency
         }
 
-        # Initialize splits with character-level tokens
+
         splits = self._split_into_chars()
 
-        # Build initial vocabulary from characters
+
         alphabet = set()
         for word in self.word_freqs.keys():
             for i, char in enumerate(word):
@@ -51,11 +49,18 @@ class WordPieceTrainer:
                 else:
                     alphabet.add(f"##{char}")
 
-        # Start with special tokens
+
         vocab = self.special_tokens.copy()
         vocab.extend(sorted(alphabet))
 
-        # Iteratively merge pairs until target vocab size
+        # Merge tokens with progress bar
+        target_vocab_size = self.vocab_size - len(vocab)
+        pbar = tqdm(
+            total=target_vocab_size,
+            desc="Building vocabulary",
+            disable=not verbose,
+        )
+
         while len(vocab) < self.vocab_size:
             pair_scores = self._compute_pair_scores(splits)
             if not pair_scores:
@@ -64,11 +69,13 @@ class WordPieceTrainer:
             best = self._best_pair(pair_scores)
             splits = self._merge_pair(best, splits)
 
-            # Add merged token to vocabulary
+
             new_token = best[0] + best[1].replace("##", "")
             vocab.append(new_token)
+            pbar.update(1)
 
-        # Convert to dictionary
+        pbar.close()
+
         self.vocab = {token: idx for idx, token in enumerate(vocab)}
         return self.vocab
 
@@ -123,8 +130,8 @@ class WordPieceTrainer:
             new_splits[word] = new_split
 
         return new_splits
-    
-    
+
+
 
 class WordPieceTokenizer(BaseTokenizer):
     """Wrapper around WordPiece tokenization.
@@ -165,9 +172,9 @@ class WordPieceTokenizer(BaseTokenizer):
         self.kwargs = kwargs
         self.vocab = {}
         self.id_to_token = {}
-        self.trainer = None  
-    
-    
+        self.trainer = None
+
+
     def train(
         self,
         data: Union[str, List[str]],
@@ -181,7 +188,7 @@ class WordPieceTokenizer(BaseTokenizer):
                 - List of strings (will be processed directly)
             output_dir: Directory to save the model. If None, uses current directory.
         """
-        # Load text data
+
         if isinstance(data, list):
             texts = data
         elif isinstance(data, str) and os.path.isfile(data):
@@ -192,7 +199,7 @@ class WordPieceTokenizer(BaseTokenizer):
                 "data must be either a file path or a list of strings"
             )
 
-        # Train the tokenizer
+
         self.trainer = WordPieceTrainer(
             vocab_size=self._vocab_size,
             min_frequency=self.min_frequency,
@@ -201,12 +208,12 @@ class WordPieceTokenizer(BaseTokenizer):
         self.vocab = self.trainer.train(texts, lowercase=self.lowercase)
         self.id_to_token = {idx: token for token, idx in self.vocab.items()}
 
-        # Save the model if output directory is specified
+
         if output_dir is not None:
             os.makedirs(output_dir, exist_ok=True)
             model_path = os.path.join(output_dir, f'{self.model_prefix}.json')
             self.save(model_path)
-    
+
     def save(self, model_path: str) -> None:
         """Saves the trained WordPiece model to the specified path.
 
@@ -284,7 +291,7 @@ class WordPieceTokenizer(BaseTokenizer):
                 end -= 1
 
             if not found:
-                # Unknown token - use <unk>
+
                 return ['<unk>']
 
             start = end
@@ -307,18 +314,18 @@ class WordPieceTokenizer(BaseTokenizer):
                 "Call train() or use from_pretrained() first."
             )
 
-        # Pre-tokenize
+
         words = pre_tokenize(text, self.lowercase)
 
-        # Tokenize each word
+
         tokens = []
         for word in words:
             tokens.extend(self._tokenize_word(word))
 
-        # Convert to IDs
+
         ids = [self.vocab.get(token, self.vocab.get('<unk>', 1)) for token in tokens]
 
-        # Add special tokens if requested
+
         if add_special_tokens:
             cls_id = self.vocab.get('<cls>', 2)
             sep_id = self.vocab.get('<sep>', 3)
@@ -342,21 +349,21 @@ class WordPieceTokenizer(BaseTokenizer):
                 "Call train() or use from_pretrained() first."
             )
 
-        # Convert IDs to tokens
+
         tokens = []
         for idx in ids:
             token = self.id_to_token.get(idx, '<unk>')
 
-            # Skip special tokens if requested
+
             if skip_special_tokens and token in self.special_tokens:
                 continue
 
             tokens.append(token)
 
-        # Join tokens and remove ## markers
+
         text = ' '.join(tokens).replace(' ##', '').replace('##', '')
         return text
-    
+
     @property
     def vocab_size(self) -> int:
         """Returns the size of the vocabulary."""
@@ -383,5 +390,4 @@ class WordPieceTokenizer(BaseTokenizer):
     def eos_id(self) -> int:
         """Returns the ID of the end-of-sequence token."""
         return self.vocab.get('<sep>', 3)
-    
-    
+

@@ -5,9 +5,10 @@ import torch.nn as nn
 from typing import Optional
 from composennent.basic.decoder import Decoder
 from composennent.attention import causal_mask
+from .base import BaseLanguageModel
 
 
-class GPT(nn.Module):
+class GPT(BaseLanguageModel):
     """GPT: Decoder-only Transformer for autoregressive language modeling.
 
     Implements a GPT-style architecture with stacked decoder layers,
@@ -24,6 +25,7 @@ class GPT(nn.Module):
         mlp_ratio: MLP expansion ratio for decoder layers. Defaults to 4.
 
     Example:
+        >>> # Create new model
         >>> model = GPT(
         ...     vocab_size=50257,
         ...     latent_dim=768,
@@ -31,6 +33,12 @@ class GPT(nn.Module):
         ...     num_layers=12,
         ... )
         >>> logits = model(input_ids)  # (batch, seq_len, vocab_size)
+        >>>
+        >>> # Save model
+        >>> model.save("gpt_model.pt")
+        >>>
+        >>> # Load pretrained model
+        >>> loaded_model = GPT.load("gpt_model.pt")
 
     Note:
         Uses weight tying between token embeddings and language model head
@@ -48,7 +56,16 @@ class GPT(nn.Module):
         mlp_ratio: int = 4,
     ) -> None:
         super().__init__()
+
+
+        self.vocab_size = vocab_size
         self.latent_dim = latent_dim
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.max_seq_len = max_seq_len
+        self.drop_out = drop_out
+        self.mlp_ratio = mlp_ratio
+
 
         self.token_embedding = nn.Embedding(vocab_size, latent_dim)
         self.position_embedding = nn.Embedding(max_seq_len, latent_dim)
@@ -94,3 +111,12 @@ class GPT(nn.Module):
         logits = self.lm_head(x)
 
         return logits
+
+    def save(self, path: str):
+        """Save model weights and configuration."""
+        super().save(path)
+
+    @classmethod
+    def load(cls, path: str, device: str = "cpu", **model_kwargs):
+        """Load model from saved checkpoint."""
+        return super().load(path, device=device, **model_kwargs)

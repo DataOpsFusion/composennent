@@ -31,7 +31,7 @@ class HuggingFaceTokenizer(BaseTokenizer):
         """
         self.hf = hf_tokenizer
 
-        # Set pad token if not already set (common for GPT-2 style models)
+
         if self.hf.pad_token is None:
             self.hf.pad_token = self.hf.eos_token
 
